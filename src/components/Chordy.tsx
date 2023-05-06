@@ -1,7 +1,9 @@
 import { For, createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createStore, produce } from "solid-js/store";
 import { OverlappingButton } from "./ui/OverlappingButton";
 import { EditableText } from "./ui/EditableText";
+import { RoundButton } from "./ui/RoundButton";
+
 const chordLetters = ["A", "B", "C", "D", "E", "F", "G"] as const;
 
 type Song = {
@@ -39,7 +41,7 @@ function ChordInput(props: {
   return (
     <input
       onFocus={props.onFocus}
-      class="bg-inherit border w-16"
+      class="bg-inherit border border-cyan-300"
       type="text"
       onKeyUp={props.onKeyUp}
       value={value()}
@@ -50,30 +52,34 @@ function ChordInput(props: {
 
 function Section(props: {
   section: SectionType;
-  addChord: (section: SectionType, sectionIndex: number) => void;
+  addChord: (
+    chord: string,
+    section: SectionType,
+    sectionIndex: number,
+    barIndex: number
+  ) => void;
   sectionIndex: number;
+  addBars: (sectionIndex: number) => void;
 }) {
   const [activeFormInput, setActiveFormInput] = createSignal("");
-  const resolution = WHOLE;
 
   const onKeyUp =
-    (section: SectionType, sectionIndex: number, chordIndex: number) =>
-    (event: KeyUpEvent) => {
-      if (event.key !== "Enter") {
+    (section: SectionType, sectionIndex: number) => (event: KeyUpEvent) => {
+      if (event.key === "Tab") {
+        console.log("tab");
+        event.preventDefault();
+      } else if (event.key !== "Enter") {
         return;
       }
 
       const barIndex = +activeFormInput().split("-")?.[1];
-      const newBar = section.bars[barIndex];
-      newBar.chords.push({
-        text: event.currentTarget.value,
-        length: resolution,
-      });
-      section.bars[barIndex] = newBar;
 
-      section.bars.push({ chords: [] });
-
-      props.addChord(section, sectionIndex);
+      props.addChord(
+        event.currentTarget.value,
+        section,
+        sectionIndex,
+        barIndex
+      );
     };
 
   function onFocus(section: number, bar: number, i: number) {
@@ -81,6 +87,10 @@ function Section(props: {
       e.preventDefault();
       setActiveFormInput(`${section}-${bar}-${i}`);
     };
+  }
+
+  function onAddBarsClick() {
+    props.addBars(props.sectionIndex);
   }
 
   return (
@@ -94,24 +104,20 @@ function Section(props: {
             <div class="">
               {[0].map((chordIndex) => (
                 <>
-                  |{" "}
                   <ChordInput
                     onFocus={onFocus(
                       props.sectionIndex,
                       barIndex(),
                       chordIndex
                     )}
-                    onKeyUp={onKeyUp(
-                      props.section,
-                      props.sectionIndex,
-                      chordIndex
-                    )}
+                    onKeyUp={onKeyUp(props.section, props.sectionIndex)}
                   />
                 </>
               ))}
             </div>
           )}
         </For>
+        <RoundButton class="mt-4" valid={true} onClick={onAddBarsClick} />
       </div>
     </>
   );
@@ -119,7 +125,13 @@ function Section(props: {
 
 function Sections(props: {
   sections: SectionType[];
-  addChord: (section: SectionType, sectionIndex: number) => void;
+  addChord: (
+    chord: string,
+    section: SectionType,
+    sectionIndex: number,
+    barIndex: number
+  ) => void;
+  addBars: (sectionIndex: number) => void;
 }) {
   return (
     <div class="grid grid-cols-12 gap-4">
@@ -129,6 +141,7 @@ function Sections(props: {
             addChord={props.addChord}
             section={section}
             sectionIndex={sectionIndex()}
+            addBars={props.addBars}
           />
         )}
       </For>
@@ -158,45 +171,76 @@ function SectionInput({ addSection }: { addSection: (arg0: string) => void }) {
   );
 }
 
-const createSection = (name: string) => ({ name, bars: [{ chords: [] }] });
+const createSection = (name: string) => ({
+  name,
+  bars: [{ chords: [] }, { chords: [] }, { chords: [] }, { chords: [] }],
+});
 
 const WHOLE = 1;
-const HALF = WHOLE / 2;
-const QUARTER = HALF / 2;
+const HALF = 0.5;
+const QUARTER = 0.25;
 type Whole = typeof WHOLE;
 type Half = typeof HALF;
 type Quarter = typeof QUARTER;
 type Resolution = Whole | Half | Quarter;
 
+type State = {
+  resolution: Resolution;
+  title: string;
+  sections: SectionType[];
+};
+
+const initialState: State = {
+  title: "Title",
+  sections: [createSection("Verse"), createSection("Chorus")],
+  resolution: WHOLE,
+};
+
 export default function Chordy() {
-  const [state, setState] = createStore({
-    title: "Title",
-    sections: [createSection("Verse"), createSection("Chorus")],
-  });
-  const [resolution, setResolution] = createSignal<Resolution>(WHOLE);
+  const [state, setState] = createStore<typeof initialState>(initialState);
 
   function updateTitle(title: string) {
     setState("title", title);
-    // setSong((song) => ({ ...song, name: title }));
   }
 
   function handleAddSection(value: string) {
-    setState("sections", (prev) => [...prev, createSection(value)]);
+    setState("sections", (prev: SectionType[]) => [
+      ...prev,
+      createSection(value),
+    ]);
   }
 
-  function addChord(section: SectionType, sectionIndex: number) {
-    // console.log(section);
-    // const found = song().sections.find((x) => x === section);
-    // console.log("found", found);
-    // setSong((song) => {
-    //   const sections = song.sections;
-    //   sections[sectionIndex] = section;
-    //   return {
-    //     ...song,
-    //     sections,
-    //   };
-    // });
-    // console.log(song());
+  function addChord(
+    chord: string,
+    section: SectionType,
+    sectionIndex: number,
+    barIndex: number
+  ) {
+    console.log(chord);
+    setState(
+      produce((s) => {
+        s.sections[sectionIndex].bars[barIndex].chords.push({
+          text: chord,
+          length: state.resolution,
+        });
+      })
+    );
+  }
+
+  function addBars(sectionIndex: number) {
+    setState(
+      produce((s) => {
+        const section = s.sections[sectionIndex];
+        console.log(s.sections, sectionIndex, section);
+        section.bars = [
+          ...section.bars,
+          { chords: [] },
+          { chords: [] },
+          { chords: [] },
+          { chords: [] },
+        ];
+      })
+    );
   }
 
   return (
@@ -213,7 +257,12 @@ export default function Chordy() {
         ))}
       </div> */}
         <SectionInput addSection={handleAddSection} />
-        <Sections sections={state.sections} addChord={addChord} />
+        <Sections
+          sections={state.sections}
+          addChord={addChord}
+          addBars={addBars}
+        />
+        <div>{JSON.stringify(state)}</div>
       </div>
     </div>
   );

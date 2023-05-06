@@ -1,4 +1,5 @@
 import { createSignal } from "solid-js";
+import { RoundButton } from "./RoundButton";
 
 export function OverlappingButton(props: {
   placeholder?: string;
@@ -50,9 +51,7 @@ export function OverlappingButton(props: {
         onKeyUp={handleKeyUp}
         placeholder={props.placeholder}
       />
-      <button class="neu-btn-inside w-8 h-8 ml-4 font-bold text-slate-600 active:text-slate-300 hover:text-slate-400 absolute top-1 right-1">
-        {valid() ? <span>+</span> : <span>x</span>}
-      </button>
+      <RoundButton class="absolute top-1 right-1" valid={valid()} />
     </form>
   );
 }
