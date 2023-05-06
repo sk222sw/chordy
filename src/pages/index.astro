@@ -1,8 +1,7 @@
 ---
-import Chordy from '../components/Chordy.astro';
+import Chordy from '../components/Chordy.jsx';
 import BaseLayout from '../layouts/BaseLayout.astro';
-const pageTitle = "Home Page";
 ---
-<BaseLayout pageTitle={""}>
-	<Chordy />
+<BaseLayout>
+	<Chordy client:idle />
 </BaseLayout>
